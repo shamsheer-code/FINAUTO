@@ -219,6 +219,9 @@ th{color:var(--mut);font-weight:500;font-size:12px}
 .tpill .dot{width:9px;height:9px;border-radius:50%;background:var(--r);animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.25}}
 @media(max-width:900px){.tpill{bottom:calc(92px + env(safe-area-inset-bottom))}}
+.tile{cursor:pointer;padding:16px;transition:transform .15s,border-color .15s}.tile:hover{transform:translateY(-2px);border-color:rgba(139,92,246,.5)}
+.addtile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;border:1.5px dashed rgba(139,92,246,.45);background:rgba(139,92,246,.06);min-height:130px;color:#c4b5fd}
+.catgrid button b{font-size:12.5px}
 .mob-logo{display:none;align-items:center;gap:10px;margin-bottom:14px}
 .mob-logo .mark{width:32px;height:32px;border-radius:10px;background:var(--grad);display:grid;place-items:center}
 .mob-logo b{font-family:'Space Grotesk';letter-spacing:.06em}
@@ -285,7 +288,7 @@ const defTasks=()=>[
  {id:uid(),name:'Getting ready',cat:'body',min:35,feel:'neutral',fix:{type:'none',cost:0,after:35,active:false}}
 ];
 const DEF=()=>({v:1,created:today(),settings:{name:'Maier',salary:0,salaryCur:'KWD',savings:0,savingsCur:'INR',workHours:10,defCur:'KWD',trip:{on:false,country:'',cur:'USD',id:null}},
- rates:{INR:1,KWD:290,USD:88,AED:24,SAR:23.5,EUR:102},passive:[],tasks:defTasks(),reviews:{},expenses:[],friends:[],bills:[],budgets:{},budgetHist:{},alloc:{savings:0,family:0,growth:0},sessions:[],timer:null,trips:[],lastNotify:''});
+ rates:{INR:1,KWD:290,USD:88,AED:24,SAR:23.5,EUR:102},passive:[],tasks:defTasks(),reviews:{},expenses:[],friends:[],bills:[],budgets:{},budgetHist:{},alloc:{savings:0,family:0,growth:0},sessions:[],timer:null,activities:[],trips:[],lastNotify:''});
 
 let S;
 function load(){try{const r=localStorage.getItem(KEY);S=r?Object.assign(DEF(),JSON.parse(r)):DEF()}catch(e){S=DEF()}}
@@ -357,8 +360,10 @@ function calc(){
   const coverage=survival>0?passiveINR/survival:0;
   const savingsINR=toINR(s.savings,s.savingsCur);
   const runway=survival>0?savingsINR/survival:0;
+  const w7=addDays(t,-6),aw=k=>S.sessions.filter(x=>x.date>=w7&&x.date<=t&&S.activities.some(a=>a.id===x.task&&a.kind===k)).reduce((a,x)=>a+x.min,0)/60;
+  const growthWeek=aw('growth'),leisureWeek=aw('leisure');
   const moods=r7.map(([k,r])=>({k,m:r.mood})).filter(x=>x.m).sort((a,b)=>a.k<b.k?-1:1);
-  const M={t,dataDays,discovery,ck,cm,survival,miscAvg,workWeek,base,after,actual,saved,freeBefore,freeAfter,freeActual,salaryINR,hourValue,passiveINR,coverage,savingsINR,runway,moods,r7n:r7.length};
+  const M={t,dataDays,discovery,ck,cm,survival,miscAvg,workWeek,base,after,actual,saved,freeBefore,freeAfter,freeActual,salaryINR,hourValue,passiveINR,coverage,savingsINR,runway,moods,growthWeek,leisureWeek,r7n:r7.length};
   M.sugg=suggestions(M);M.bs=budgetStats(M);
   return M;
 }
@@ -416,7 +421,7 @@ const V={};
 V.home=()=>{
   const M=calc(),s=S.settings,al=alerts(M);
   const firstRun=!S.expenses.length&&!s.salary&&!Object.keys(S.reviews).length;
-  const wk=[['Work',M.workWeek,'#22d3ee'],['Sleep',56,'#6366f1'],['Routine tasks',M.after,'#f59e0b'],['Free',Math.max(0,M.freeAfter),'linear-gradient(90deg,#34d399,#a3e635)']];
+  const wk=[['Work',M.workWeek,'#22d3ee'],['Sleep',56,'#6366f1'],['Routine tasks',M.after,'#f59e0b'],['Growth',Math.min(M.growthWeek,Math.max(0,M.freeAfter)),'#a3e635'],['Leisure',Math.min(M.leisureWeek,Math.max(0,M.freeAfter-M.growthWeek)),'#f472b6'],['Free',Math.max(0,M.freeAfter-M.growthWeek-M.leisureWeek),'linear-gradient(90deg,#34d399,#22d3ee)']].filter(w=>w[0]!=='Growth'&&w[0]!=='Leisure'||w[1]>0);
   const up=S.bills.map(b=>({b,n:billNext(b)})).filter(o=>o.n.days<=7).sort((a,b)=>a.n.days-b.n.days);
   const fr={toreturn:0,unsure:0};S.friends.forEach(f=>{if(fr[f.state]!=null)fr[f.state]+=remaining(f)});
   const MOOD=['','😫','😕','😐','🙂','🤩'];
@@ -431,7 +436,7 @@ V.home=()=>{
     <div>
       <div class="lbl">Free hours per week · after automation</div>
       <div class="mega">${cnt(Math.max(0,M.freeAfter),'dec1')}<small>h</small></div>
-      <div class="mut sm">Before automation: <b style="color:var(--txt)">${Math.max(0,M.freeBefore).toFixed(1)} h</b> · Automation gives you <b class="g">+${M.saved.toFixed(1)} h/week</b>${M.freeActual!=null?` · Last 7 days actual: <b class="c">${Math.max(0,M.freeActual).toFixed(1)} h</b>`:''}</div>
+      <div class="mut sm">Before automation: <b style="color:var(--txt)">${Math.max(0,M.freeBefore).toFixed(1)} h</b> · Automation gives you <b class="g">+${M.saved.toFixed(1)} h/week</b>${M.freeActual!=null?` · Last 7 days actual: <b class="c">${Math.max(0,M.freeActual).toFixed(1)} h</b>`:''}${M.growthWeek?` · 🌱 Growth: <b style="color:#a3e635">${M.growthWeek.toFixed(1)} h</b>`:''}</div>
       <div class="week">${wk.map(w=>`<i style="width:${w[1]/168*100}%;background:${w[2]}" title="${w[0]} ${w[1].toFixed(1)} h"></i>`).join('')}</div>
       <div class="legend">${wk.map(w=>`<span style="--k:${w[2].startsWith('linear')?'#34d399':w[2]}">${w[0]} ${w[1].toFixed(0)}h</span>`).join('')}<span class="mut">of 168 h</span></div>
     </div>
@@ -497,11 +502,13 @@ V.review=()=>{
 const planMin=x=>(x.fix&&x.fix.active&&x.fix.type!=='none')?(+x.fix.after||0):(+x.min||0);
 const hms=s=>{s=Math.max(0,Math.floor(s));return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60)};
 const hm=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+'h '+(m%60?pad(m%60)+'m':''):m+'m'};
-function timerTargets(){return[{id:'work',name:'Work shift',e:'💼',c:'#22d3ee',plan:(+S.settings.workHours||10)*60},...S.tasks.map(x=>({id:x.id,name:x.name,e:CATS[x.cat].e,c:CATS[x.cat].c,plan:planMin(x)}))]}
-const tName=id=>id==='work'?'Work shift':(S.tasks.find(x=>x.id===id)||{name:'Task'}).name;
+function timerTargets(){return[{id:'work',name:'Work shift',e:'💼',c:'#22d3ee',plan:(+S.settings.workHours||10)*60},...S.tasks.map(x=>({id:x.id,name:x.name,e:CATS[x.cat].e,c:CATS[x.cat].c,plan:planMin(x)})),...S.activities.map(a=>({id:a.id,name:a.name,e:a.e,c:ACTK[a.kind].c,plan:+a.goal||0,kind:a.kind,custom:true}))]}
+const ACTK={routine:{n:'Routine task',e:'🔁',c:'#f59e0b',d:'counts as survival time'},growth:{n:'Growth',e:'🌱',c:'#a3e635',d:'learning, building, side income'},leisure:{n:'Leisure',e:'🎮',c:'#f472b6',d:'rest, fun, social'}};
+const tName=id=>id==='work'?'Work shift':(S.tasks.find(x=>x.id===id)||S.activities.find(x=>x.id===id)||{name:'Activity'}).name;
 function dayMins(d,task){return S.sessions.filter(x=>x.date===d&&x.task===task).reduce((a,x)=>a+x.min,0)}
 function ensureReview(d){if(!S.reviews[d])S.reviews[d]={date:d,shift:'morning',work:+S.settings.workHours||10,mood:0,mins:Object.fromEntries(S.tasks.map(x=>[x.id,planMin(x)])),auto:true};return S.reviews[d]}
 function syncDay(d,task){
+  if(S.activities.some(a=>a.id===task)){RV=null;return}
   const r=ensureReview(d);r.timed=r.timed||{};const m=dayMins(d,task);
   if(task==='work'){if(m>0)r.work=Math.round(m/60*4)/4;else if(r.timed.work)r.work=+S.settings.workHours||10;r.timed.work=m>0}
   else{const x=S.tasks.find(y=>y.id===task);r.mins[task]=m>0?m:(x?planMin(x):0);r.timed[task]=m>0}
@@ -519,37 +526,46 @@ V.timer=()=>{
   const cur=run?tg.find(x=>x.id===run.task)||{name:tName(run.task),e:'⏱️',c:'#8b5cf6',plan:60}:null;
   const el=run?(Date.now()-run.start)/1000:0;
   const ss=S.sessions.filter(s=>s.date===t).sort((a,b)=>b.start-a.start);
-  const rt=ss.filter(s=>s.task!=='work').reduce((a,s)=>a+s.min,0),wt=ss.filter(s=>s.task==='work').reduce((a,s)=>a+s.min,0);
+  const isAct=id=>S.activities.some(a=>a.id===id);
+  const rt=ss.filter(s=>s.task!=='work'&&!isAct(s.task)).reduce((a,s)=>a+s.min,0),wt=ss.filter(s=>s.task==='work').reduce((a,s)=>a+s.min,0);
   const planTot=S.tasks.reduce((a,x)=>a+planMin(x),0);
   const from=addDays(t,-6);
   const acc=S.tasks.map(x=>{const se=S.sessions.filter(s=>s.task===x.id&&s.date>=from);const n=new Set(se.map(s=>s.date)).size;return{x,n,avg:n?se.reduce((a,s)=>a+s.min,0)/n:0,plan:planMin(x)}}).filter(o=>o.n>0);
   const pct=cur?el/60/Math.max(1,cur.plan):0;
-  return `<header class="top"><div><div class="lbl">Measure, don't guess</div><h1>Task <span class="gt">timer</span></h1><p>Tap a task to start. When you stop, the minutes go straight into today's review, so Home, Automate and your free-hours numbers update themselves.</p></div></header>
+  const tile=x=>{const m=dayMins(t,x.id),on=run&&run.task===x.id;return `<div class="card tile" role="button" tabindex="0" data-act="${on?'tstop':'tstart'}" data-v="${x.id}" style="${on?`border-color:${x.c};box-shadow:0 0 30px -6px ${x.c}`:''}">
+      <div class="between"><span style="font-size:26px">${x.e}</span><span class="flex" style="gap:4px"><span class="tag" style="${on?`color:${x.c};border-color:${x.c}`:''}">${on?'■ stop':'▶ start'}</span>${x.custom?`<button class="x" style="font-size:15px;padding:2px 6px" data-act="delact" data-id="${x.id}" title="Remove activity">×</button>`:''}</span></div>
+      <b style="display:block;margin:10px 0 4px">${esc(x.name)}</b><div class="mut xs">${hm(m)} of ${x.plan?hm(x.plan):'—'} ${x.kind?'goal':'today'}</div>
+      <div style="margin-top:8px">${bar(x.plan?m/x.plan:0,x.kind==='growth'&&m>=x.plan?'linear-gradient(90deg,#a3e635,#34d399)':m>x.plan&&!x.kind?'linear-gradient(90deg,#fbbf24,#fb7185)':`linear-gradient(90deg,${x.c},#8b5cf6)`)}</div></div>`};
+  const acts=tg.filter(x=>x.custom);
+  const goals=S.activities.map(a=>{const w=S.sessions.filter(s=>s.task===a.id&&s.date>=from).reduce((s,x)=>s+x.min,0);return{a,w,goal:(+a.goal||0)*7}});
+  return `<header class="top"><div><div class="lbl">Measure, don't guess</div><h1>Task <span class="gt">timer</span></h1><p>Time routine tasks, work, and your own activities. Routine minutes go into today's review; growth and leisure show how you spend your free hours.</p></div>
+  <div class="topr"><button class="btn" data-act="addact">+ Add activity</button><button class="btn ghost" data-act="logtime">🕘 Log past time</button></div></header>
   <section class="card hero" style="--d:0">
     <div><div class="lbl">${run?'Running now':'Idle'}</div>
       <div class="mega ${run?'tlive':''}" style="font-variant-numeric:tabular-nums">${hms(el)}</div>
-      ${run?`<div class="mut">${cur.e} <b style="color:var(--txt)">${esc(cur.name)}</b> · planned ${hm(cur.plan)} · started ${new Date(run.start).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
+      ${run?`<div class="mut">${cur.e} <b style="color:var(--txt)">${esc(cur.name)}</b> · ${cur.kind?'goal':'planned'} ${hm(cur.plan)} · started ${new Date(run.start).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
       <div class="flex" style="margin-top:18px"><button class="btn red" data-act="tstop">■ Stop & save</button><button class="btn ghost" data-act="tdiscard">Discard</button></div>`
-      :`<div class="mut">Pick a task below. Only one timer runs at a time — starting another saves the current one.</div>`}
+      :`<div class="mut">Pick a task or activity below. Only one timer runs at a time — starting another saves the current one.</div>`}
     </div>
-    <div class="rings"><div id="tring" style="text-align:center">${ring(pct,`<b>${run?Math.round(pct*100)+'%':'—'}</b><span>of plan</span>`,cur?cur.c:'#8b5cf6',pct>1?'#fb7185':'#22d3ee',170,14)}<div class="ringbox"><div class="cap">${run?(pct>1?'over your planned time':'of planned time used'):'start a task'}</div></div></div></div>
+    <div class="rings"><div id="tring" style="text-align:center">${ring(pct,`<b>${run?Math.round(pct*100)+'%':'—'}</b><span>of ${cur&&cur.kind?'goal':'plan'}</span>`,cur?cur.c:'#8b5cf6',pct>1&&!(cur&&cur.kind)?'#fb7185':'#22d3ee',170,14)}<div class="ringbox"><div class="cap">${run?(pct>1?(cur.kind?'goal reached 🎉':'over your planned time'):'of time used'):'start something'}</div></div></div></div>
   </section>
   <div class="grid g4">
-    <div class="card stat" style="--d:1"><div class="glow" style="background:#f59e0b"></div><div class="lbl">Routine timed today</div><div class="v num">${hm(rt)}</div><div class="mut xs">plan ${hm(planTot)} per day</div></div>
+    <div class="card stat" style="--d:1"><div class="glow" style="background:#f59e0b"></div><div class="lbl">Routine timed today</div><div class="v num">${hm(rt)}</div><div class="mut xs">worth ${inr(rt/60*M.hourValue)} · plan ${hm(planTot)}</div></div>
     <div class="card stat" style="--d:2"><div class="glow" style="background:#22d3ee"></div><div class="lbl">Work timed today</div><div class="v num">${hm(wt)}</div><div class="mut xs">sets today's work hours</div></div>
-    <div class="card stat" style="--d:3"><div class="glow" style="background:#f472b6"></div><div class="lbl">Value of routine time</div><div class="v num">${cnt(rt/60*M.hourValue)}</div><div class="mut xs">today at ${inr(M.hourValue)}/h</div></div>
-    <div class="card stat" style="--d:4"><div class="glow" style="background:#34d399"></div><div class="lbl">Free hours / week</div><div class="v num">${cnt(Math.max(0,M.freeActual!=null?M.freeActual:M.freeAfter),'dec1')}<span class="mut sm"> h</span></div><div class="mut xs">last 7 days, incl. timer data</div></div>
+    <div class="card stat" style="--d:3"><div class="glow" style="background:#a3e635"></div><div class="lbl">🌱 Growth this week</div><div class="v num">${cnt(M.growthWeek,'dec1')}<span class="mut sm"> h</span></div><div class="mut xs">${M.freeAfter>0?Math.round(M.growthWeek/M.freeAfter*100):0}% of your free hours</div></div>
+    <div class="card stat" style="--d:4"><div class="glow" style="background:#34d399"></div><div class="lbl">Free hours / week</div><div class="v num">${cnt(Math.max(0,M.freeActual!=null?M.freeActual:M.freeAfter),'dec1')}<span class="mut sm"> h</span></div><div class="mut xs">unused: ${Math.max(0,(M.freeActual!=null?M.freeActual:M.freeAfter)-M.growthWeek-M.leisureWeek).toFixed(1)} h</div></div>
   </div>
-  <div class="card" style="--d:5;margin-bottom:16px"><h2>▶️ Start a task</h2>
-    <div class="grid g4" style="margin:0">${tg.map(x=>{const m=dayMins(t,x.id),on=run&&run.task===x.id;return `<button class="card" data-act="${on?'tstop':'tstart'}" data-v="${x.id}" style="text-align:left;cursor:pointer;padding:16px;${on?`border-color:${x.c};box-shadow:0 0 30px -6px ${x.c}`:''}">
-      <div class="between"><span style="font-size:26px">${x.e}</span><span class="tag" style="${on?`color:${x.c};border-color:${x.c}`:''}">${on?'■ stop':'▶ start'}</span></div>
-      <b style="display:block;margin:10px 0 4px">${esc(x.name)}</b><div class="mut xs">${hm(m)} of ${hm(x.plan)} today</div>
-      <div style="margin-top:8px">${bar(x.plan?m/x.plan:0,m>x.plan?'linear-gradient(90deg,#fbbf24,#fb7185)':`linear-gradient(90deg,${x.c},#8b5cf6)`)}</div></button>`}).join('')}</div></div>
-  <div class="grid g2">
-    <div class="card" style="--d:6"><h2>🎯 Estimate vs reality · 7 days</h2><div class="mut xs" style="margin-bottom:6px">Update your estimate and Automate + Home recalculate from real data.</div>
-      ${acc.length?acc.map(o=>{const d=o.avg-o.plan;return `<div class="row"><div class="ic">${CATS[o.x.cat].e}</div><div class="mid"><b>${esc(o.x.name)}</b><span>estimate ${o.plan}m · timer ${Math.round(o.avg)}m/day (${o.n} d)</span></div><span class="tag ${Math.abs(d)<5?'g':d>0?'r':'g'}">${d>0?'+':''}${Math.round(d)}m</span>${Math.abs(d)>=5?`<button class="btn sm ghost" data-act="tuse" data-id="${o.x.id}" data-v="${Math.round(o.avg)}">Use ${Math.round(o.avg)}m</button>`:''}</div>`}).join(''):'<div class="empty">Time a few tasks — this compares your guesses with reality.</div>'}</div>
-    <div class="card" style="--d:7"><h2>🧾 Today's sessions</h2>
-      ${ss.length?ss.map(s=>{const x=tg.find(y=>y.id===s.task)||{e:'⏱️'};return `<div class="row"><div class="ic">${x.e}</div><div class="mid"><b>${esc(tName(s.task))}</b><span>${new Date(s.start).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})} – ${new Date(s.end).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="end num">${hm(s.min)}</div><button class="x" data-act="tdel" data-id="${s.id}">×</button></div>`}).join(''):'<div class="empty">No timed sessions today yet.</div>'}</div>
+  <div class="card" style="--d:5;margin-bottom:16px"><h2>🔁 Routine & work</h2>
+    <div class="grid g4" style="margin:0">${tg.filter(x=>!x.custom).map(tile).join('')}</div></div>
+  <div class="card" style="--d:6;margin-bottom:16px"><h2>🌱 Your activities</h2>
+    <div class="grid g4" style="margin:0">${acts.map(tile).join('')}<div class="card tile addtile" role="button" tabindex="0" data-act="addact"><span style="font-size:30px">＋</span><b>Add activity</b><span class="mut xs">learning, building, gym, reading…</span></div></div></div>
+  <div class="grid g3">
+    <div class="card" style="--d:7"><h2>🏁 Activity goals · 7 days</h2>
+      ${goals.length?goals.map(o=>`<div style="padding:8px 0"><div class="between sm"><span>${o.a.e} ${esc(o.a.name)} <span class="tag" style="margin-left:4px">${ACTK[o.a.kind].e} ${ACTK[o.a.kind].n}</span></span><b class="num">${hm(o.w)} / ${hm(o.goal)}</b></div><div style="margin-top:6px">${bar(o.goal?o.w/o.goal:0,`linear-gradient(90deg,${ACTK[o.a.kind].c},#22d3ee)`)}</div></div>`).join(''):'<div class="empty">Add an activity to set weekly goals.</div>'}</div>
+    <div class="card" style="--d:8"><h2>🎯 Estimate vs reality · 7 days</h2><div class="mut xs" style="margin-bottom:6px">Update estimates and Automate + Home recalculate.</div>
+      ${acc.length?acc.map(o=>{const d=o.avg-o.plan;return `<div class="row"><div class="ic">${CATS[o.x.cat].e}</div><div class="mid"><b>${esc(o.x.name)}</b><span>estimate ${o.plan}m · timer ${Math.round(o.avg)}m/day (${o.n} d)</span></div><span class="tag ${Math.abs(d)<5?'g':d>0?'r':'g'}">${d>0?'+':''}${Math.round(d)}m</span>${Math.abs(d)>=5?`<button class="btn sm ghost" data-act="tuse" data-id="${o.x.id}" data-v="${Math.round(o.avg)}">Use ${Math.round(o.avg)}m</button>`:''}</div>`}).join(''):'<div class="empty">Time a few routine tasks to compare guesses with reality.</div>'}</div>
+    <div class="card" style="--d:9"><h2>🧾 Today's sessions</h2>
+      ${ss.length?ss.map(s=>{const x=tg.find(y=>y.id===s.task)||{e:'⏱️'};return `<div class="row"><div class="ic">${x.e}</div><div class="mid"><b>${esc(tName(s.task))}</b><span>${s.manual?'logged manually':new Date(s.start).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' – '+new Date(s.end).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="end num">${hm(s.min)}</div><button class="x" data-act="tdel" data-id="${s.id}">×</button></div>`}).join(''):'<div class="empty">No timed sessions today yet.</div>'}</div>
   </div>`;
 };
 setInterval(()=>{if(!S||!S.timer)return;const s=(Date.now()-S.timer.start)/1000;document.querySelectorAll('.tlive').forEach(e=>e.textContent=hms(s));
@@ -770,7 +786,7 @@ V.settings=()=>{
 };
 
 /* ---------- quick add modal ---------- */
-let QA=null,MODAL=null;
+let QA=null,MODAL=null,AD={};
 function openQuick(opt={}){
   const s=S.settings;
   QA={amt:'',cur:s.trip.on?s.trip.cur:s.defCur,cat:opt.cat||null,note:'',date:opt.date||today(),person:'',state:'toreturn',due:addDays(today(),7)};
@@ -796,6 +812,20 @@ function renderModal(){
   } else if(MODAL&&MODAL.t==='partial'){
     const f=S.friends.find(x=>x.id===MODAL.id);
     el.innerHTML=`<div class="between"><h2 style="margin:0">Partial return · ${esc(f.person)}</h2><button class="x" data-act="close">×</button></div><div class="mut sm">Still owed: ${money((remaining(f)/f.rate).toFixed(3)*1,f.cur)}</div><label class="f" style="margin-top:12px">Amount received (${f.cur})<input id="pAmt" type="number" step="any" min="0"></label><button class="btn wide" style="margin-top:14px" data-act="psave">Save</button>`;
+  } else if(MODAL&&MODAL.t==='act'){
+    const EM=['📚','💻','🎬','🎨','🧠','✍️','🏋️','🧘','📖','🎸','🛠️','🕌','🎮','☕','🚶','📞'];
+    el.innerHTML=`<div class="between"><h2 style="margin:0">＋ Add activity</h2><button class="x" data-act="close">×</button></div>
+    <label class="f" style="margin-top:8px">Name<input id="adName" data-ad="name" value="${esc(AD.name)}" placeholder="e.g. Learning math, Video editing, Gym"></label>
+    <div class="sec">Icon</div><div class="chips">${EM.map(e=>`<button class="chip ${AD.e===e?'on':''}" style="font-size:20px;padding:6px 10px" data-act="adem" data-v="${e}">${e}</button>`).join('')}</div>
+    <div class="sec">What kind of time is it?</div><div class="catgrid">${Object.entries(ACTK).map(([k,a])=>`<button style="--k:${a.c}" class="${AD.kind===k?'on':''}" data-act="adkind" data-v="${k}"><span>${a.e}</span><b style="color:var(--txt)">${a.n}</b>${a.d}</button>`).join('')}</div>
+    <div class="form" style="margin-top:14px">${AD.kind==='routine'?`<label class="f">Category<select data-ad="cat">${Object.entries(CATS).map(([k,c])=>`<option value="${k}" ${AD.cat===k?'selected':''}>${c.e} ${c.n}</option>`).join('')}</select></label>`:''}<label class="f">${AD.kind==='routine'?'Planned minutes / day':'Daily goal (minutes)'}<input type="number" min="0" step="5" data-ad="goal" value="${AD.goal}"></label></div>
+    <div class="mut xs" style="margin-top:10px">${AD.kind==='routine'?'Routine tasks count as survival time and also appear in Review and Automate.':'Growth and leisure time is taken from your free hours — Home shows how you use them.'}</div>
+    <div class="flex" style="margin-top:16px"><button class="btn" style="flex:1" data-act="adsave" data-v="start">Save & start ▶</button><button class="btn ghost" style="flex:1" data-act="adsave">Save</button></div>`;
+  } else if(MODAL&&MODAL.t==='log'){
+    const tg=timerTargets();
+    el.innerHTML=`<div class="between"><h2 style="margin:0">🕘 Log past time</h2><button class="x" data-act="close">×</button></div><div class="mut sm">Forgot to start the timer? Add it here.</div>
+    <div class="form" style="margin-top:12px"><label class="f">Activity<select id="lgTask">${tg.map(x=>`<option value="${x.id}">${x.e} ${esc(x.name)}</option>`).join('')}</select></label><label class="f">Minutes<input id="lgMin" type="number" min="1" step="5" value="30"></label><label class="f">Date<input id="lgDate" type="date" value="${today()}" max="${today()}"></label></div>
+    <button class="btn wide" style="margin-top:16px" data-act="lgsave">Save</button>`;
   } else if(MODAL&&MODAL.t==='date'){
     const f=S.friends.find(x=>x.id===MODAL.id);
     el.innerHTML=`<div class="between"><h2 style="margin:0">When to ask ${esc(f.person)}?</h2><button class="x" data-act="close">×</button></div><label class="f" style="margin-top:12px">Expected return date<input id="dDate" type="date" value="${f.due||addDays(today(),7)}"></label><div class="mut xs" style="margin-top:8px">FINAUTO reminds you on this date, then every 3 days while overdue.</div><button class="btn wide" style="margin-top:14px" data-act="dsave">Save</button>`;
@@ -823,6 +853,16 @@ const A={
   rvmood:t=>{RV.mood=+t.dataset.v;render(false)},
   rvmin:t=>{RV.mins[t.dataset.id]=Math.max(0,(+RV.mins[t.dataset.id]||0)+(+t.dataset.v));render(false)},
   tstart:t=>startTimer(t.dataset.v),
+  addact:()=>{AD={name:'',e:'📚',kind:'growth',goal:30,cat:'home'};MODAL={t:'act'};renderModal();document.getElementById('modal').classList.add('open');setTimeout(()=>document.getElementById('adName')?.focus(),60)},
+  adem:t=>{AD.e=t.dataset.v;renderModal()},
+  adkind:t=>{AD.kind=t.dataset.v;renderModal()},
+  adsave:t=>{const n=(AD.name||'').trim();if(!n)return toast('Give it a name');const g=Math.max(0,+AD.goal||0),id=uid();
+    if(AD.kind==='routine')S.tasks.push({id,name:n,cat:AD.cat||'home',min:g,feel:'neutral',fix:{type:'none',cost:0,after:g,active:false}});
+    else S.activities.push({id,name:n,e:AD.e,kind:AD.kind,goal:g});
+    save();closeModal();if(t.dataset.v==='start')startTimer(id);else{toast('＋ '+n+' added');render(false)}},
+  delact:t=>{S.activities=S.activities.filter(a=>a.id!==t.dataset.id);if(S.timer&&S.timer.task===t.dataset.id)S.timer=null;save();toast('Activity removed');render(false)},
+  logtime:()=>{MODAL={t:'log'};renderModal();document.getElementById('modal').classList.add('open')},
+  lgsave:()=>{const task=document.getElementById('lgTask').value,min=Math.round(+document.getElementById('lgMin').value),d=document.getElementById('lgDate').value||today();if(!min||min<1)return toast('Enter minutes');const st=parse(d).getTime()+12*36e5;S.sessions.push({id:uid(),task,start:st,end:st+min*6e4,date:d,min,manual:true});syncDay(d,task);save();closeModal();toast('✓ '+hm(min)+' logged to '+tName(task));render(false)},
   tstop:()=>stopTimer(true),
   tdiscard:()=>{stopTimer(false);toast('Timer discarded');render(false)},
   tdel:t=>{const x=S.sessions.find(s=>s.id===t.dataset.id);S.sessions=S.sessions.filter(s=>s.id!==t.dataset.id);if(x)syncDay(x.date,x.task);save();render(false)},
@@ -869,9 +909,9 @@ document.addEventListener('click',e=>{
   const t=e.target.closest('[data-act]');if(!t)return;const f=A[t.dataset.act];if(f){e.preventDefault();f(t,e)}
 });
 document.addEventListener('input',e=>{
-  const t=e.target;if(t.dataset.live){const el=document.getElementById(t.dataset.live);if(el)el.textContent=inr(+t.value)}if(t.dataset.qa){QA[t.dataset.qa]=t.value;if(t.dataset.qa==='amt'||t.dataset.qa==='cur'){const v=(+QA.amt||0)*rate(QA.cur);const el=document.getElementById('qaInr');if(el)el.innerHTML=QA.cur!=='INR'&&v?'≈ '+inr(v):'&nbsp;'}}
+  const t=e.target;if(t.dataset.ad){AD[t.dataset.ad]=t.value}if(t.dataset.live){const el=document.getElementById(t.dataset.live);if(el)el.textContent=inr(+t.value)}if(t.dataset.qa){QA[t.dataset.qa]=t.value;if(t.dataset.qa==='amt'||t.dataset.qa==='cur'){const v=(+QA.amt||0)*rate(QA.cur);const el=document.getElementById('qaInr');if(el)el.innerHTML=QA.cur!=='INR'&&v?'≈ '+inr(v):'&nbsp;'}}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MODAL)closeModal();if(e.key==='Enter'&&MODAL==='quick'&&e.target.tagName==='INPUT')A.qasave()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MODAL)closeModal();if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('tile')){e.preventDefault();e.target.click();return}if(e.key==='Enter'&&MODAL==='quick'&&e.target.tagName==='INPUT')A.qasave()});
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='rvDate'){rvLoad(t.value||today());return render(false)}
@@ -888,7 +928,7 @@ document.addEventListener('change',e=>{
 });
 function mergeIn(d){
   if(!d||typeof d!=='object')throw 0;
-  ['passive','tasks','expenses','friends','bills','trips','sessions'].forEach(k=>{if(!Array.isArray(d[k]))return;const m=new Map(S[k].map(x=>[x.id,x]));d[k].forEach(x=>m.set(x.id,x));S[k]=[...m.values()]});
+  ['passive','tasks','expenses','friends','bills','trips','sessions','activities'].forEach(k=>{if(!Array.isArray(d[k]))return;const m=new Map(S[k].map(x=>[x.id,x]));d[k].forEach(x=>m.set(x.id,x));S[k]=[...m.values()]});
   ['reviews','rates','budgets','budgetHist','alloc'].forEach(k=>{if(d[k])S[k]={...S[k],...d[k]}});
   if(d.settings)S.settings={...S.settings,...d.settings};
   if(d.created&&d.created<S.created)S.created=d.created;
@@ -946,6 +986,8 @@ function loadDemo(){
   const M=calc();BCATS.forEach(c=>S.budgets[c]=M.bs[c].sug);
   {const D=allocData(calc());const left=Math.max(0,D.income-D.spend);S.alloc={savings:Math.floor(left*.5/100)*100,growth:Math.floor(left*.3/100)*100,family:Math.floor(left*.2/100)*100}}
   pastMonths().concat(M.ck).forEach(k=>{const b={};BCATS.forEach(c=>b[c]=M.bs[c].sug);S.budgetHist[k]=b});
+  S.activities=[{id:uid(),name:'Learning (math & CS)',e:'📚',kind:'growth',goal:60},{id:uid(),name:'Video editing',e:'🎬',kind:'growth',goal:45},{id:uid(),name:'Phone & rest',e:'🎮',kind:'leisure',goal:60}];
+  for(let i=6;i>=1;i--){const d=addDays(t,-i);S.activities.forEach(a=>{if(rnd()<.75){const st=parse(d).getTime()+R(15,22)*36e5,min=Math.round(a.goal*R(.5,1.4)/5)*5;S.sessions.push({id:uid(),task:a.id,start:st,end:st+min*6e4,date:d,min})}})}
   const tk=S.tasks.filter(x=>['Cooking','Commute','Laundry & ironing','Cleaning'].includes(x.name));
   for(let i=6;i>=1;i--){const d=addDays(t,-i);tk.forEach(x=>{if(rnd()<.8){const st=parse(d).getTime()+R(7,20)*36e5,min=Math.max(5,Math.round(planMin(x)*R(.9,1.5)));S.sessions.push({id:uid(),task:x.id,start:st,end:st+min*6e4,date:d,min});syncDay(d,x.id)}})}
   RV=null;
