@@ -214,6 +214,11 @@ th{color:var(--mut);font-weight:500;font-size:12px}
   .hero{grid-template-columns:1fr;padding:22px}
   .mob-logo{display:flex!important}
 }
+.tpill{position:fixed;left:50%;transform:translateX(-50%);bottom:30px;z-index:25;display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:99px;border:1px solid rgba(34,211,238,.5);background:rgba(12,14,30,.9);backdrop-filter:blur(16px);color:var(--txt);font-size:14px;cursor:pointer;box-shadow:0 10px 30px -8px rgba(34,211,238,.6)}
+.tpill b{font-family:'Space Grotesk';font-variant-numeric:tabular-nums}
+.tpill .dot{width:9px;height:9px;border-radius:50%;background:var(--r);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+@media(max-width:900px){.tpill{bottom:calc(92px + env(safe-area-inset-bottom))}}
 .mob-logo{display:none;align-items:center;gap:10px;margin-bottom:14px}
 .mob-logo .mark{width:32px;height:32px;border-radius:10px;background:var(--grad);display:grid;place-items:center}
 .mob-logo b{font-family:'Space Grotesk';letter-spacing:.06em}
@@ -280,7 +285,7 @@ const defTasks=()=>[
  {id:uid(),name:'Getting ready',cat:'body',min:35,feel:'neutral',fix:{type:'none',cost:0,after:35,active:false}}
 ];
 const DEF=()=>({v:1,created:today(),settings:{name:'Maier',salary:0,salaryCur:'KWD',savings:0,savingsCur:'INR',workHours:10,defCur:'KWD',trip:{on:false,country:'',cur:'USD',id:null}},
- rates:{INR:1,KWD:290,USD:88,AED:24,SAR:23.5,EUR:102},passive:[],tasks:defTasks(),reviews:{},expenses:[],friends:[],bills:[],budgets:{},budgetHist:{},alloc:{savings:0,family:0,growth:0},trips:[],lastNotify:''});
+ rates:{INR:1,KWD:290,USD:88,AED:24,SAR:23.5,EUR:102},passive:[],tasks:defTasks(),reviews:{},expenses:[],friends:[],bills:[],budgets:{},budgetHist:{},alloc:{savings:0,family:0,growth:0},sessions:[],timer:null,trips:[],lastNotify:''});
 
 let S;
 function load(){try{const r=localStorage.getItem(KEY);S=r?Object.assign(DEF(),JSON.parse(r)):DEF()}catch(e){S=DEF()}}
@@ -404,7 +409,7 @@ const greet=()=>{const h=new Date().getHours();return h<5?'Late night':h<12?'Goo
 const tripBadge=()=>S.settings.trip.on?`<span class="tag pu">✈️ Trip mode · ${esc(S.settings.trip.country)} · ${S.settings.trip.cur}</span>`:'';
 
 /* ---------- views ---------- */
-const NAV=[['home','🏠','Home'],['review','🌙','Review'],['spend','💸','Spend'],['friends','🤝','Friends'],['budget','🎯','Budget'],['allocate','🧮','Allocate'],['automate','⚡','Automate'],['bills','🔔','Bills'],['settings','⚙️','Settings']];
+const NAV=[['home','🏠','Home'],['review','🌙','Review'],['timer','⏱️','Timer'],['spend','💸','Spend'],['friends','🤝','Friends'],['budget','🎯','Budget'],['allocate','🧮','Allocate'],['automate','⚡','Automate'],['bills','🔔','Bills'],['settings','⚙️','Settings']];
 let VIEW='home';
 const V={};
 
@@ -468,7 +473,7 @@ V.review=()=>{
   const tot=Object.values(RV.mins).reduce((a,b)=>a+(+b||0),0);
   const spends=S.expenses.filter(e=>e.date===RV.date);
   const done=!!S.reviews[RV.date];
-  return `<header class="top"><div><div class="lbl">2-minute ritual</div><h1>Daily <span class="gt">review</span></h1><p>Pre-filled from your template. Change only what was different today.</p></div><div class="topr">${done?'<span class="tag g">✓ saved</span>':'<span class="tag y">not saved yet</span>'}</div></header>
+  return `<header class="top"><div><div class="lbl">2-minute ritual</div><h1>Daily <span class="gt">review</span></h1><p>Pre-filled from your template. Change only what was different today.</p></div><div class="topr">${done&&S.reviews[RV.date].auto?'<span class="tag pu">⏱️ auto-filled by timer — confirm</span>':done?'<span class="tag g">✓ saved</span>':'<span class="tag y">not saved yet</span>'}</div></header>
   <div class="grid g2">
     <div class="card" style="--d:1"><h2>🕐 Shift</h2>
       <label class="f">Date<input type="date" id="rvDate" value="${RV.date}" max="${today()}"></label>
@@ -483,10 +488,72 @@ V.review=()=>{
     </div>
   </div>
   <div class="card" style="--d:3"><div class="between"><h2 style="margin:0">⏱️ Routine tasks today</h2><span class="tag v">${(tot/60).toFixed(1)} h total</span></div>
-    ${S.tasks.map(x=>`<div class="row"><div class="ic" style="background:${CATS[x.cat].c}22">${CATS[x.cat].e}</div><div class="mid"><b>${esc(x.name)}</b><span>${CATS[x.cat].n}${x.fix.active&&x.fix.type!=='none'?' · <span class="g">automated</span>':''}</span></div><div class="stepper"><button data-act="rvmin" data-id="${x.id}" data-v="-15">−</button><b>${RV.mins[x.id]} min</b><button data-act="rvmin" data-id="${x.id}" data-v="15">+</button></div></div>`).join('')}
+    ${S.tasks.map(x=>`<div class="row"><div class="ic" style="background:${CATS[x.cat].c}22">${CATS[x.cat].e}</div><div class="mid"><b>${esc(x.name)}</b><span>${CATS[x.cat].n}${x.fix.active&&x.fix.type!=='none'?' · <span class="g">automated</span>':''}${RV.timed&&RV.timed[x.id]?' · <span class="c">⏱️ timed</span>':''}</span></div><div class="stepper"><button data-act="rvmin" data-id="${x.id}" data-v="-15">−</button><b>${RV.mins[x.id]} min</b><button data-act="rvmin" data-id="${x.id}" data-v="15">+</button></div></div>`).join('')}
   </div>
   <button class="btn wide" data-act="rvsave">✓ Save today's review</button>`;
 };
+
+/* --- Timer --- */
+const planMin=x=>(x.fix&&x.fix.active&&x.fix.type!=='none')?(+x.fix.after||0):(+x.min||0);
+const hms=s=>{s=Math.max(0,Math.floor(s));return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60)};
+const hm=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+'h '+(m%60?pad(m%60)+'m':''):m+'m'};
+function timerTargets(){return[{id:'work',name:'Work shift',e:'💼',c:'#22d3ee',plan:(+S.settings.workHours||10)*60},...S.tasks.map(x=>({id:x.id,name:x.name,e:CATS[x.cat].e,c:CATS[x.cat].c,plan:planMin(x)}))]}
+const tName=id=>id==='work'?'Work shift':(S.tasks.find(x=>x.id===id)||{name:'Task'}).name;
+function dayMins(d,task){return S.sessions.filter(x=>x.date===d&&x.task===task).reduce((a,x)=>a+x.min,0)}
+function ensureReview(d){if(!S.reviews[d])S.reviews[d]={date:d,shift:'morning',work:+S.settings.workHours||10,mood:0,mins:Object.fromEntries(S.tasks.map(x=>[x.id,planMin(x)])),auto:true};return S.reviews[d]}
+function syncDay(d,task){
+  const r=ensureReview(d);r.timed=r.timed||{};const m=dayMins(d,task);
+  if(task==='work'){if(m>0)r.work=Math.round(m/60*4)/4;else if(r.timed.work)r.work=+S.settings.workHours||10;r.timed.work=m>0}
+  else{const x=S.tasks.find(y=>y.id===task);r.mins[task]=m>0?m:(x?planMin(x):0);r.timed[task]=m>0}
+  RV=null;
+}
+function startTimer(id){if(S.timer)stopTimer(true,true);S.timer={task:id,start:Date.now()};save();toast('⏱️ '+tName(id)+' started');render(false)}
+function stopTimer(keep=true,quiet=false){
+  const T=S.timer;if(!T)return;S.timer=null;const ms=Date.now()-T.start;
+  if(keep&&ms>=30000){const min=Math.max(1,Math.round(ms/60000)),d=iso(new Date(T.start));S.sessions.push({id:uid(),task:T.task,start:T.start,end:Date.now(),date:d,min});syncDay(d,T.task);if(!quiet)toast('✓ '+hm(min)+' added to '+tName(T.task))}
+  else if(keep&&!quiet)toast('Under 30 seconds — not saved');
+  save();if(!quiet)render(false);
+}
+V.timer=()=>{
+  const M=calc(),t=today(),run=S.timer,tg=timerTargets();
+  const cur=run?tg.find(x=>x.id===run.task)||{name:tName(run.task),e:'⏱️',c:'#8b5cf6',plan:60}:null;
+  const el=run?(Date.now()-run.start)/1000:0;
+  const ss=S.sessions.filter(s=>s.date===t).sort((a,b)=>b.start-a.start);
+  const rt=ss.filter(s=>s.task!=='work').reduce((a,s)=>a+s.min,0),wt=ss.filter(s=>s.task==='work').reduce((a,s)=>a+s.min,0);
+  const planTot=S.tasks.reduce((a,x)=>a+planMin(x),0);
+  const from=addDays(t,-6);
+  const acc=S.tasks.map(x=>{const se=S.sessions.filter(s=>s.task===x.id&&s.date>=from);const n=new Set(se.map(s=>s.date)).size;return{x,n,avg:n?se.reduce((a,s)=>a+s.min,0)/n:0,plan:planMin(x)}}).filter(o=>o.n>0);
+  const pct=cur?el/60/Math.max(1,cur.plan):0;
+  return `<header class="top"><div><div class="lbl">Measure, don't guess</div><h1>Task <span class="gt">timer</span></h1><p>Tap a task to start. When you stop, the minutes go straight into today's review, so Home, Automate and your free-hours numbers update themselves.</p></div></header>
+  <section class="card hero" style="--d:0">
+    <div><div class="lbl">${run?'Running now':'Idle'}</div>
+      <div class="mega ${run?'tlive':''}" style="font-variant-numeric:tabular-nums">${hms(el)}</div>
+      ${run?`<div class="mut">${cur.e} <b style="color:var(--txt)">${esc(cur.name)}</b> · planned ${hm(cur.plan)} · started ${new Date(run.start).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
+      <div class="flex" style="margin-top:18px"><button class="btn red" data-act="tstop">■ Stop & save</button><button class="btn ghost" data-act="tdiscard">Discard</button></div>`
+      :`<div class="mut">Pick a task below. Only one timer runs at a time — starting another saves the current one.</div>`}
+    </div>
+    <div class="rings"><div id="tring" style="text-align:center">${ring(pct,`<b>${run?Math.round(pct*100)+'%':'—'}</b><span>of plan</span>`,cur?cur.c:'#8b5cf6',pct>1?'#fb7185':'#22d3ee',170,14)}<div class="ringbox"><div class="cap">${run?(pct>1?'over your planned time':'of planned time used'):'start a task'}</div></div></div></div>
+  </section>
+  <div class="grid g4">
+    <div class="card stat" style="--d:1"><div class="glow" style="background:#f59e0b"></div><div class="lbl">Routine timed today</div><div class="v num">${hm(rt)}</div><div class="mut xs">plan ${hm(planTot)} per day</div></div>
+    <div class="card stat" style="--d:2"><div class="glow" style="background:#22d3ee"></div><div class="lbl">Work timed today</div><div class="v num">${hm(wt)}</div><div class="mut xs">sets today's work hours</div></div>
+    <div class="card stat" style="--d:3"><div class="glow" style="background:#f472b6"></div><div class="lbl">Value of routine time</div><div class="v num">${cnt(rt/60*M.hourValue)}</div><div class="mut xs">today at ${inr(M.hourValue)}/h</div></div>
+    <div class="card stat" style="--d:4"><div class="glow" style="background:#34d399"></div><div class="lbl">Free hours / week</div><div class="v num">${cnt(Math.max(0,M.freeActual!=null?M.freeActual:M.freeAfter),'dec1')}<span class="mut sm"> h</span></div><div class="mut xs">last 7 days, incl. timer data</div></div>
+  </div>
+  <div class="card" style="--d:5;margin-bottom:16px"><h2>▶️ Start a task</h2>
+    <div class="grid g4" style="margin:0">${tg.map(x=>{const m=dayMins(t,x.id),on=run&&run.task===x.id;return `<button class="card" data-act="${on?'tstop':'tstart'}" data-v="${x.id}" style="text-align:left;cursor:pointer;padding:16px;${on?`border-color:${x.c};box-shadow:0 0 30px -6px ${x.c}`:''}">
+      <div class="between"><span style="font-size:26px">${x.e}</span><span class="tag" style="${on?`color:${x.c};border-color:${x.c}`:''}">${on?'■ stop':'▶ start'}</span></div>
+      <b style="display:block;margin:10px 0 4px">${esc(x.name)}</b><div class="mut xs">${hm(m)} of ${hm(x.plan)} today</div>
+      <div style="margin-top:8px">${bar(x.plan?m/x.plan:0,m>x.plan?'linear-gradient(90deg,#fbbf24,#fb7185)':`linear-gradient(90deg,${x.c},#8b5cf6)`)}</div></button>`}).join('')}</div></div>
+  <div class="grid g2">
+    <div class="card" style="--d:6"><h2>🎯 Estimate vs reality · 7 days</h2><div class="mut xs" style="margin-bottom:6px">Update your estimate and Automate + Home recalculate from real data.</div>
+      ${acc.length?acc.map(o=>{const d=o.avg-o.plan;return `<div class="row"><div class="ic">${CATS[o.x.cat].e}</div><div class="mid"><b>${esc(o.x.name)}</b><span>estimate ${o.plan}m · timer ${Math.round(o.avg)}m/day (${o.n} d)</span></div><span class="tag ${Math.abs(d)<5?'g':d>0?'r':'g'}">${d>0?'+':''}${Math.round(d)}m</span>${Math.abs(d)>=5?`<button class="btn sm ghost" data-act="tuse" data-id="${o.x.id}" data-v="${Math.round(o.avg)}">Use ${Math.round(o.avg)}m</button>`:''}</div>`}).join(''):'<div class="empty">Time a few tasks — this compares your guesses with reality.</div>'}</div>
+    <div class="card" style="--d:7"><h2>🧾 Today's sessions</h2>
+      ${ss.length?ss.map(s=>{const x=tg.find(y=>y.id===s.task)||{e:'⏱️'};return `<div class="row"><div class="ic">${x.e}</div><div class="mid"><b>${esc(tName(s.task))}</b><span>${new Date(s.start).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})} – ${new Date(s.end).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="end num">${hm(s.min)}</div><button class="x" data-act="tdel" data-id="${s.id}">×</button></div>`}).join(''):'<div class="empty">No timed sessions today yet.</div>'}</div>
+  </div>`;
+};
+setInterval(()=>{if(!S||!S.timer)return;const s=(Date.now()-S.timer.start)/1000;document.querySelectorAll('.tlive').forEach(e=>e.textContent=hms(s));
+  if(VIEW==='timer'){const x=timerTargets().find(y=>y.id===S.timer.task);const p=clamp(s/60/Math.max(1,x?x.plan:60),0,1);const a=document.querySelector('#tring .arc');if(a){const C=+a.style.getPropertyValue('--c');a.style.setProperty('--off',C*(1-p));a.style.animation='none'}const b=document.querySelector('#tring .in b');if(b)b.textContent=Math.round(s/60/Math.max(1,x?x.plan:60)*100)+'%'}},1000);
 
 /* --- Spend + unexpected --- */
 let SPM=null;
@@ -755,7 +822,12 @@ const A={
   rvwork:t=>{RV.work=clamp(RV.work+(+t.dataset.v),0,24);render(false)},
   rvmood:t=>{RV.mood=+t.dataset.v;render(false)},
   rvmin:t=>{RV.mins[t.dataset.id]=Math.max(0,(+RV.mins[t.dataset.id]||0)+(+t.dataset.v));render(false)},
-  rvsave:()=>{S.reviews[RV.date]={...RV};save();toast('🌙 Review saved — good night!');render(false)},
+  tstart:t=>startTimer(t.dataset.v),
+  tstop:()=>stopTimer(true),
+  tdiscard:()=>{stopTimer(false);toast('Timer discarded');render(false)},
+  tdel:t=>{const x=S.sessions.find(s=>s.id===t.dataset.id);S.sessions=S.sessions.filter(s=>s.id!==t.dataset.id);if(x)syncDay(x.date,x.task);save();render(false)},
+  tuse:t=>{const x=S.tasks.find(y=>y.id===t.dataset.id);const v=+t.dataset.v;if(x.fix.active&&x.fix.type!=='none')x.fix.after=v;else x.min=v;save();toast('Estimate updated → '+v+' min/day');render(false)},
+  rvsave:()=>{RV.auto=false;S.reviews[RV.date]={...RV};save();toast('🌙 Review saved — good night!');render(false)},
   delexp:t=>{S.expenses=S.expenses.filter(e=>e.id!==t.dataset.id);save();render(false)},
   fret:t=>{const f=S.friends.find(x=>x.id===t.dataset.id);const rem=remaining(f);if(rem>0)(f.returned=f.returned||[]).push({date:today(),inr:rem});f.state='returned';f.returnedDate=today();save();toast('✅ Marked returned');render(false)},
   fpart:t=>{MODAL={t:'partial',id:t.dataset.id};renderModal();document.getElementById('modal').classList.add('open')},
@@ -816,7 +888,7 @@ document.addEventListener('change',e=>{
 });
 function mergeIn(d){
   if(!d||typeof d!=='object')throw 0;
-  ['passive','tasks','expenses','friends','bills','trips'].forEach(k=>{if(!Array.isArray(d[k]))return;const m=new Map(S[k].map(x=>[x.id,x]));d[k].forEach(x=>m.set(x.id,x));S[k]=[...m.values()]});
+  ['passive','tasks','expenses','friends','bills','trips','sessions'].forEach(k=>{if(!Array.isArray(d[k]))return;const m=new Map(S[k].map(x=>[x.id,x]));d[k].forEach(x=>m.set(x.id,x));S[k]=[...m.values()]});
   ['reviews','rates','budgets','budgetHist','alloc'].forEach(k=>{if(d[k])S[k]={...S[k],...d[k]}});
   if(d.settings)S.settings={...S.settings,...d.settings};
   if(d.created&&d.created<S.created)S.created=d.created;
@@ -828,7 +900,7 @@ function render(anim=true){
   ANIM=anim;gid=0;
   const m=document.getElementById('main');
   m.classList.toggle('anim',anim);
-  m.innerHTML=`<div class="mob-logo"><div class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div><b>FINAUTO</b></div>`+V[VIEW]();
+  m.innerHTML=`<div class="mob-logo"><div class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div><b>FINAUTO</b></div>`+(S.timer&&VIEW!=='timer'?`<button class="tpill" data-act="go" data-v="timer"><span class="dot"></span>${esc(tName(S.timer.task))} <b class="tlive">${hms((Date.now()-S.timer.start)/1000)}</b></button>`:'')+V[VIEW]();
   document.getElementById('sidenav').innerHTML=navHTML();
   document.getElementById('botnav').innerHTML=navHTML();
   runCounters();
@@ -874,6 +946,8 @@ function loadDemo(){
   const M=calc();BCATS.forEach(c=>S.budgets[c]=M.bs[c].sug);
   {const D=allocData(calc());const left=Math.max(0,D.income-D.spend);S.alloc={savings:Math.floor(left*.5/100)*100,growth:Math.floor(left*.3/100)*100,family:Math.floor(left*.2/100)*100}}
   pastMonths().concat(M.ck).forEach(k=>{const b={};BCATS.forEach(c=>b[c]=M.bs[c].sug);S.budgetHist[k]=b});
+  const tk=S.tasks.filter(x=>['Cooking','Commute','Laundry & ironing','Cleaning'].includes(x.name));
+  for(let i=6;i>=1;i--){const d=addDays(t,-i);tk.forEach(x=>{if(rnd()<.8){const st=parse(d).getTime()+R(7,20)*36e5,min=Math.max(5,Math.round(planMin(x)*R(.9,1.5)));S.sessions.push({id:uid(),task:x.id,start:st,end:st+min*6e4,date:d,min});syncDay(d,x.id)}})}
   RV=null;
 }
 
